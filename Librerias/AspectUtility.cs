@@ -1,101 +1,137 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-public class AspectUtility : MonoBehaviour {
-	
-	public float _wantedAspectRatio = 1.3333333f;
-	static float wantedAspectRatio;
-	static Camera cam;
-	static Camera backgroundCam;
-	
-	void Awake () {
-		cam = GetComponent<Camera>();
-		if (!cam) {
-			cam = Camera.main;
-		}
-		if (!cam) {
-			Debug.LogError ("No camera available");
-			return;
-		}
-		wantedAspectRatio = _wantedAspectRatio;
-		SetCamera();
-	}
-	
-	public static void SetCamera () {
-		float currentAspectRatio = (float)Screen.width / Screen.height;
-		// If the current aspect ratio is already approximately equal to the desired aspect ratio,
-		// use a full-screen Rect (in case it was set to something else previously)
-		if ((int)(currentAspectRatio * 100) / 100.0f == (int)(wantedAspectRatio * 100) / 100.0f) {
-			cam.rect = new Rect(0.0f, 0.0f, 1.0f, 1.0f);
-			if (backgroundCam) {
-				Destroy(backgroundCam.gameObject);
-			}
-			return;
-		}
-		// Pillarbox
-		if (currentAspectRatio > wantedAspectRatio) {
-			float inset = 1.0f - wantedAspectRatio/currentAspectRatio;
-			cam.rect = new Rect(inset/2, 0.0f, 1.0f-inset, 1.0f);
-		}
-		// Letterbox
-		else {
-			float inset = 1.0f - currentAspectRatio/wantedAspectRatio;
-			cam.rect = new Rect(0.0f, inset/2, 1.0f, 1.0f-inset);
-		}
-		if (!backgroundCam) {
-			// Make a new camera behind the normal camera which displays black; otherwise the unused space is undefined
-			backgroundCam = new GameObject("BackgroundCam", typeof(Camera)).GetComponent<Camera>();
-			backgroundCam.depth = int.MinValue;
-			backgroundCam.clearFlags = CameraClearFlags.SolidColor;
-			backgroundCam.backgroundColor = Color.black;
-			backgroundCam.cullingMask = 0;
-		}
-	}
-	
-	public static int screenHeight {
-		get {
-			return (int)(Screen.height * cam.rect.height);
-		}
-	}
-	
-	public static int screenWidth {
-		get {
-			return (int)(Screen.width * cam.rect.width);
-		}
-	}
-	
-	public static int xOffset {
-		get {
-			return (int)(Screen.width * cam.rect.x);
-		}
-	}
-	
-	public static int yOffset {
-		get {
-			return (int)(Screen.height * cam.rect.y);
-		}
-	}
-	
-	public static Rect screenRect {
-		get {
-			return new Rect(cam.rect.x * Screen.width, cam.rect.y * Screen.height, cam.rect.width * Screen.width, cam.rect.height * Screen.height);
-		}
-	}
-	
-	public static Vector3 mousePosition {
-		get {
-			Vector3 mousePos = Input.mousePosition;
-			mousePos.y -= (int)(cam.rect.y * Screen.height);
-			mousePos.x -= (int)(cam.rect.x * Screen.width);
-			return mousePos;
-		}
-	}
-	
-	public static Vector2 guiMousePosition {
-		get {
-			Vector2 mousePos = Event.current.mousePosition;
-			mousePos.y = Mathf.Clamp(mousePos.y, cam.rect.y * Screen.height, cam.rect.y * Screen.height + cam.rect.height * Screen.height);
-			mousePos.x = Mathf.Clamp(mousePos.x, cam.rect.x * Screen.width, cam.rect.x * Screen.width + cam.rect.width * Screen.width);
-			return mousePos;
-		}
-	}
+// Preserves the serialized field and the public static API used by the original project.
+public class AspectUtility : MonoBehaviour
+{
+    public float _wantedAspectRatio = 1.3333333f;
+    private static AspectUtility active;
+    private Camera targetCamera;
+    private Camera backgroundCamera;
+    private Rect originalRect;
+    private bool hasOriginalRect;
+    private int lastWidth = -1;
+    private int lastHeight = -1;
+    private float lastAspect;
+
+    void Awake()
+    {
+        targetCamera = GetComponent<Camera>();
+        if (!targetCamera) targetCamera = Camera.main;
+        if (!targetCamera)
+        {
+            Debug.LogError("AspectUtility requires a camera on this object or a MainCamera.", this);
+            enabled = false;
+            return;
+        }
+        originalRect = targetCamera.rect;
+        hasOriginalRect = true;
+    }
+
+    void OnEnable()
+    {
+        if (!targetCamera) return;
+        active = this;
+        RefreshCamera();
+    }
+
+    void LateUpdate()
+    {
+        if (Screen.width != lastWidth || Screen.height != lastHeight || !_wantedAspectRatio.Equals(lastAspect))
+            RefreshCamera();
+        if (backgroundCamera && targetCamera) backgroundCamera.enabled = targetCamera.enabled;
+    }
+
+    private void RefreshCamera()
+    {
+        if (!targetCamera) return;
+        lastWidth = Screen.width;
+        lastHeight = Screen.height;
+        lastAspect = _wantedAspectRatio;
+        // Minimized/uninitialized windows must not cause division by zero.
+        if (lastWidth <= 0 || lastHeight <= 0) return;
+        float aspect = _wantedAspectRatio;
+        if (aspect <= 0 || float.IsNaN(aspect) || float.IsInfinity(aspect))
+        {
+            Debug.LogWarning("AspectUtility: invalid aspect ratio; using 4:3.", this);
+            aspect = 4f / 3f;
+        }
+        AspectViewport viewport = AspectViewport.Calculate(lastWidth, lastHeight, aspect);
+        targetCamera.rect = new Rect(viewport.X, viewport.Y, viewport.Width, viewport.Height);
+        if (viewport.Width == 1 && viewport.Height == 1)
+        {
+            RemoveBackground();
+            return;
+        }
+        if (!backgroundCamera)
+        {
+            GameObject background = new GameObject("AspectUtility Background", typeof(Camera));
+            background.hideFlags = HideFlags.HideAndDontSave;
+            backgroundCamera = background.GetComponent<Camera>();
+            backgroundCamera.depth = int.MinValue;
+            backgroundCamera.clearFlags = CameraClearFlags.SolidColor;
+            backgroundCamera.backgroundColor = Color.black;
+            backgroundCamera.cullingMask = 0;
+        }
+        backgroundCamera.enabled = targetCamera.enabled;
+    }
+
+    private void RemoveBackground()
+    {
+        if (!backgroundCamera) return;
+        // Destroy is deferred; disable first so it cannot render another frame.
+        backgroundCamera.enabled = false;
+        Destroy(backgroundCamera.gameObject);
+        backgroundCamera = null;
+    }
+
+    void OnDisable()
+    {
+        RemoveBackground();
+        if (targetCamera && hasOriginalRect) targetCamera.rect = originalRect;
+        if (active == this) active = null;
+    }
+
+    public static void SetCamera()
+    {
+        if (active) active.RefreshCamera();
+    }
+
+    public static Rect screenRect
+    {
+        get
+        {
+            Rect viewport = active && active.targetCamera ? active.targetCamera.rect : new Rect(0, 0, 1, 1);
+            return new Rect(viewport.x * Screen.width, viewport.y * Screen.height,
+                viewport.width * Screen.width, viewport.height * Screen.height);
+        }
+    }
+    public static int screenHeight { get { return (int)screenRect.height; } }
+    public static int screenWidth { get { return (int)screenRect.width; } }
+    public static int xOffset { get { return (int)screenRect.x; } }
+    public static int yOffset { get { return (int)screenRect.y; } }
+
+    public static Vector3 mousePosition
+    {
+        get
+        {
+            Vector3 position = Input.mousePosition;
+            Rect area = screenRect;
+            position.x -= (int)area.x;
+            position.y -= (int)area.y;
+            return position;
+        }
+    }
+    public static Vector2 guiMousePosition
+    {
+        get
+        {
+            // Event.current is null outside OnGUI. Preserve global GUI coordinates.
+            Vector2 position = Event.current != null ? Event.current.mousePosition :
+                new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
+            Rect area = screenRect;
+            position.x = Mathf.Clamp(position.x, area.x, area.x + area.width);
+            position.y = Mathf.Clamp(position.y, area.y, area.y + area.height);
+            return position;
+        }
+    }
 }

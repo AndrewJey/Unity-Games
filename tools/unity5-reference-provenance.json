@@ -1,0 +1,13 @@
+{
+  "editorVersion": "5.0.0f4",
+  "releasePage": "https://unity.com/releases/editor/whats-new/5.0.0f4",
+  "downloadUrl": "https://download.unity3d.com/download_unity/5b98b70ebeb9/Windows64EditorInstaller/UnitySetup64-5.0.0f4.exe",
+  "installerSha256": "5eb1f21fea2130250e2154438493d68d7535819c3c3195781a24349c0a757360",
+  "installerBytes": 1201948840,
+  "archiveEntry": "Editor/Data/Managed/UnityEngine.dll",
+  "engineSha256": "97c28825cc394c6ce215fca6a16f3fe866b11a515dc529e460772afc53d93e93",
+  "purpose": "Reference extraction only; installer not executed and license activation not attempted. Separate editor probe on an isolated project stopped because no valid license was activated.",
+  "frameworkReferences": "Microsoft.NETFramework.ReferenceAssemblies.net35 1.0.3 from nuget.org",
+  "installerSignatureStatus": "Valid",
+  "installerSigner": "Unity Technologies SF"
+}

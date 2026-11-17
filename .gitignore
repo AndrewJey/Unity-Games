@@ -93,3 +93,15 @@ TestResults/
 /MyfirstUnityProject/UserSettings/
 /MyfirstUnityProject/MemoryCaptures/
 # local-development:end
+
+# Unity generated IDE state and offline checks
+*.csproj.user
+*.pidb
+*.booproj
+*.unityproj
+*.opendb
+*.VC.db
+/MyfirstUnityProject/.vs/
+/Logs/
+/Builds/
+/Artifacts/
