@@ -75,3 +75,11 @@ Con un editor compatible y licencia válida, trabaja primero sobre una copia de 
 La reparación se publica en `codex/build-repairs-20261115`; `master` queda sin cambios nuevos hasta verificar el juego dentro del editor. El proyecto conserva su versión histórica y no se presenta como migrado a un motor moderno.
 
 Referencias primarias: [Unity 5.0.0f4 y descarga oficial](https://unity.com/releases/editor/whats-new/5.0.0f4), [referencias Microsoft .NET 3.5](https://www.nuget.org/packages/Microsoft.NETFramework.ReferenceAssemblies.net35/1.0.3).
+
+<!-- improvements-20261119:start -->
+## Mejoras y verificación — 2026-11-19 (Proyección de puntero acotada e interpolación suave de viewport)
+
+- Añadidos `ScreenToViewportClamped` (mapeo seguro de coordenadas de pantalla al área visible `[0..1]` en pillarbox/letterbox) y `AspectViewport.Lerp` para transiciones suaves en ambas copias de `AspectViewport.cs`.
+- Ampliada la suite `tests/ViewportChecks/Program.cs` hasta 18 comprobaciones.
+- Validación: `build-local.ps1 -Test` — ambos proyectos C# Unity compilados y 18/18 verificaciones aprobadas.
+<!-- improvements-20261119:end -->

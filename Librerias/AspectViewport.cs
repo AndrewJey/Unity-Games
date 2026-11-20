@@ -8,7 +8,7 @@ public struct AspectViewport
     public readonly float Width;
     public readonly float Height;
 
-    private AspectViewport(float x, float y, float width, float height)
+    public AspectViewport(float x, float y, float width, float height)
     {
         X = x;
         Y = y;
@@ -33,5 +33,38 @@ public struct AspectViewport
         }
         float height = (float)(currentAspect / desiredAspect);
         return new AspectViewport(0, (1 - height) / 2, 1, height);
+    }
+
+    // Maps screen pixel coordinates into clamped [0..1] viewport space for smooth cursor/aim input.
+    public void ScreenToViewportClamped(float screenX, float screenY, int screenWidth, int screenHeight, out float viewportX, out float viewportY)
+    {
+        if (screenWidth <= 0) throw new ArgumentOutOfRangeException("screenWidth");
+        if (screenHeight <= 0) throw new ArgumentOutOfRangeException("screenHeight");
+
+        float normX = screenX / screenWidth;
+        float normY = screenY / screenHeight;
+        float relX = Width > 0f ? (normX - X) / Width : 0f;
+        float relY = Height > 0f ? (normY - Y) / Height : 0f;
+        viewportX = Clamp01(relX);
+        viewportY = Clamp01(relY);
+    }
+
+    // Smoothly interpolates between two camera viewports during dynamic aspect/window transitions.
+    public static AspectViewport Lerp(AspectViewport from, AspectViewport to, float t)
+    {
+        float k = Clamp01(t);
+        return new AspectViewport(
+            from.X + (to.X - from.X) * k,
+            from.Y + (to.Y - from.Y) * k,
+            from.Width + (to.Width - from.Width) * k,
+            from.Height + (to.Height - from.Height) * k
+        );
+    }
+
+    private static float Clamp01(float v)
+    {
+        if (float.IsNaN(v) || v < 0f) return 0f;
+        if (v > 1f) return 1f;
+        return v;
     }
 }
